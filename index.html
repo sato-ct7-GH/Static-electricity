@@ -847,8 +847,12 @@ function doSubmit(secId) {
     section  : sec.label,
     correct  : String(correct),
     total    : String(sec.questions.length),
-    answers  : JSON.stringify(sm.answers),
     timestamp: new Date().toLocaleString('ja-JP')
+  });
+
+  // 各問の正誤を個別パラメータとして追加（○/×）
+  sec.questions.forEach(q => {
+    _gasParams.append('q' + q.id, sm.answers[q.id] === 0 ? '○' : '×');
   });
 
   const btn = document.getElementById('sbtn');
