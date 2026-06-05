@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>電磁気（静電気）学習クイズ</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{
+      font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
+      background:#edf2f7;color:#1a202c;min-height:100vh;
+    }
+
+    /* ===== ヘッダー ===== */
+    header{
+      background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);
+      color:#fff;padding:14px 18px 12px;text-align:center;
+      box-shadow:0 2px 8px rgba(0,0,0,.25);
+    }
+    .hdr-school{font-size:11px;opacity:.75;margin-bottom:4px;letter-spacing:.5px;}
+    .hdr-title{font-size:19px;font-weight:700;letter-spacing:.5px;}
+    .hdr-sub{font-size:12px;opacity:.8;margin-top:4px;min-height:1em;}
+
+    /* ===== セクションタブ ===== */
+    .tabs{
+      display:flex;background:#1e3a8a;
+      overflow-x:auto;-webkit-overflow-scrolling:touch;
+    }
+    .tab{
+      flex:1;min-width:60px;padding:10px 4px;text-align:center;
+      font-size:13px;font-weight:600;color:rgba(255,255,255,.5);
+      cursor:pointer;border-bottom:3px solid transparent;
+      transition:all .2s;user-select:none;white-space:nowrap;
+    }
+    .tab.active{color:#fbbf24;border-bottom-color:#fbbf24;}
+    .tab.disabled{opacity:.3;cursor:not-allowed;}
+
+    /* ===== メイン ===== */
+    .main{max-width:600px;margin:0 auto;padding:14px 13px 70px;}
+
+    /* ===== モード切替 ===== */
+    .mode-row{
+      display:flex;background:#fff;border-radius:10px;
+      overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.1);margin-bottom:14px;
+    }
+    .mode-btn{
+      flex:1;padding:11px 8px;border:none;background:#fff;
+      color:#6b7280;font-size:14px;font-weight:500;
+      cursor:pointer;font-family:inherit;transition:all .2s;
+    }
+    .mode-btn.active{background:#2563eb;color:#fff;}
+
+    /* ===== 自習モード ===== */
+    .prog-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+    .prog-bar{flex:1;height:5px;background:#cbd5e1;border-radius:3px;}
+    .prog-fill{height:100%;background:#2563eb;border-radius:3px;transition:width .35s ease;}
+    .prog-text{font-size:12px;color:#64748b;white-space:nowrap;}
+    .score-row{text-align:right;font-size:13px;color:#64748b;margin-bottom:12px;}
+
+    .q-card{
+      background:#fff;border-radius:12px;padding:18px 20px;
+      margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.09);
+      border-left:4px solid #2563eb;
+    }
+    .q-num{font-size:11px;font-weight:700;color:#2563eb;margin-bottom:7px;letter-spacing:.5px;}
+    .q-text{font-size:15px;line-height:1.75;}
+
+    .choices{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+    .choice-btn{
+      width:100%;padding:12px 16px;background:#fff;
+      border:2px solid #e2e8f0;border-radius:8px;cursor:pointer;
+      font-size:14px;text-align:left;color:#374151;
+      transition:all .15s;font-family:inherit;line-height:1.6;
+    }
+    .choice-btn:hover:not(:disabled){border-color:#93c5fd;background:#eff6ff;}
+    .choice-btn.correct{border-color:#34d399;background:#ecfdf5;color:#065f46;font-weight:600;}
+    .choice-btn.wrong{border-color:#f87171;background:#fef2f2;color:#991b1b;}
+    .choice-btn:disabled{cursor:default;}
+
+    .feedback{
+      padding:12px 16px;border-radius:8px;font-size:13px;
+      line-height:1.65;display:none;margin-bottom:12px;
+    }
+    .feedback.ok{display:block;background:#ecfdf5;border:1px solid #6ee7b7;color:#065f46;}
+    .feedback.ng{display:block;background:#fef2f2;border:1px solid #fca5a5;color:#991b1b;}
+
+    .next-btn{
+      width:100%;padding:13px;background:#2563eb;color:#fff;
+      border:none;border-radius:8px;font-size:15px;font-weight:600;
+      cursor:pointer;font-family:inherit;transition:background .2s;
+    }
+    .next-btn:hover{background:#1e3a8a;}
+
+    /* ===== 結果画面 ===== */
+    .result-card{
+      background:#fff;border-radius:16px;padding:40px 24px;
+      text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.1);
+    }
+    .result-emoji{font-size:56px;margin-bottom:14px;}
+    .result-score{font-size:56px;font-weight:800;color:#2563eb;line-height:1;}
+    .result-total{font-size:17px;color:#64748b;margin-bottom:6px;}
+    .result-pct{font-size:28px;font-weight:700;color:#374151;margin-bottom:28px;}
+    .retry-btn{
+      padding:12px 36px;background:#2563eb;color:#fff;border:none;
+      border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;
+    }
+    .retry-btn:hover{background:#1e3a8a;}
+
+    /* ===== 送信モード ===== */
+    .name-card{
+      background:#fff;border-radius:12px;padding:16px 20px;
+      margin-bottom:13px;box-shadow:0 1px 4px rgba(0,0,0,.08);
+    }
+    .name-label{font-size:13px;font-weight:600;color:#374151;margin-bottom:8px;display:block;}
+    .name-input{
+      width:100%;padding:10px 14px;border:2px solid #e2e8f0;
+      border-radius:8px;font-size:15px;font-family:inherit;
+      outline:none;color:#1a202c;transition:border-color .2s;
+    }
+    .name-input:focus{border-color:#2563eb;}
+
+    .sub-q{
+      background:#fff;border-radius:10px;padding:14px 16px;
+      margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);
+    }
+    .sub-q-num{font-size:11px;font-weight:700;color:#2563eb;margin-bottom:5px;}
+    .sub-q-text{font-size:14px;line-height:1.65;margin-bottom:10px;}
+    .radio-group{display:flex;flex-direction:column;gap:5px;}
+    .radio-label{
+      display:flex;align-items:flex-start;gap:10px;
+      padding:7px 12px;border:1px solid #e5e7eb;border-radius:6px;
+      cursor:pointer;font-size:13px;color:#374151;
+      line-height:1.55;transition:background .15s;
+    }
+    .radio-label:hover{background:#f9fafb;}
+    .radio-label input[type="radio"]{margin-top:3px;flex-shrink:0;accent-color:#2563eb;}
+
+    .submit-btn{
+      width:100%;padding:14px;background:#059669;color:#fff;border:none;
+      border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;
+      font-family:inherit;margin-bottom:14px;transition:background .2s;
+    }
+    .submit-btn:hover{background:#047857;}
+    .submit-btn:disabled{background:#9ca3af;cursor:not-allowed;}
+
+    .sub-result{
+      padding:16px;border-radius:10px;text-align:center;
+      margin-bottom:16px;font-size:14px;line-height:1.8;
+    }
+    .sub-result.ok{background:#ecfdf5;border:1px solid #6ee7b7;color:#065f46;}
+    .sub-result.warn{background:#fffbeb;border:1px solid #fcd34d;color:#92400e;}
+
+    /* ===== 送信モード 解説・最終画面 ===== */
+    .sm-explanation{
+      display:flex;gap:10px;align-items:flex-start;
+      background:#fffbeb;border:1px solid #fcd34d;
+      border-radius:8px;padding:12px 14px;
+      font-size:13px;line-height:1.7;color:#78350f;
+      margin-bottom:12px;
+    }
+    .sm-expl-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+    .sm-final-card{
+      background:#fff;border-radius:16px;padding:36px 24px;
+      text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.1);
+    }
+    .sm-final-icon{font-size:52px;margin-bottom:12px;}
+    .sm-final-title{font-size:17px;font-weight:700;color:#1a202c;margin-bottom:6px;}
+    .sm-final-name{font-size:15px;color:#2563eb;font-weight:600;margin-bottom:20px;}
+    .sm-start-btn{
+      width:100%;padding:13px;background:#2563eb;color:#fff;border:none;
+      border-radius:8px;font-size:15px;font-weight:600;
+      cursor:pointer;font-family:inherit;margin-bottom:0;
+      transition:background .2s;
+    }
+    .sm-start-btn:hover{background:#1e3a8a;}
+
+    /* ===== 準備中 ===== */
+    .coming-card{
+      background:#fff;border-radius:16px;padding:50px 24px;
+      text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08);color:#6b7280;
+    }
+    .coming-icon{font-size:48px;margin-bottom:14px;}
+    .coming-title{font-size:18px;font-weight:600;color:#374151;margin-bottom:8px;}
+    .coming-text{font-size:14px;}
+
+    /* ===== 学習順/ランダム切替 ===== */
+    .order-row{
+      display:flex;align-items:center;gap:6px;margin-bottom:10px;
+    }
+    .order-label{font-size:12px;color:#64748b;margin-right:2px;white-space:nowrap;}
+    .order-btn{
+      padding:5px 14px;border-radius:20px;border:1.5px solid #cbd5e1;
+      background:#fff;color:#64748b;font-size:12px;font-weight:600;
+      cursor:pointer;font-family:inherit;transition:all .2s;
+    }
+    .order-btn.active{background:#2563eb;border-color:#2563eb;color:#fff;}
+    .order-btn:hover:not(.active){background:#f1f5f9;border-color:#93c5fd;}
+
+    /* KaTeX調整 */
+    .katex{font-size:1em;}
+    .katex-display{margin:.3em 0;}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-school">神奈川県立湘南高等学校　物理</div>
+  <div class="hdr-title">⚡ 電磁気（静電気）学習クイズ</div>
+  <div class="hdr-sub" id="hdrSub"></div>
+</header>
+
+<div class="tabs" id="tabs"></div>
+
+<div class="main">
+  <div class="mode-row">
+    <button class="mode-btn" id="modeStudy" onclick="setMode('study')">📖 自習モード</button>
+    <button class="mode-btn" id="modeSubmit" onclick="setMode('submit')">📤 送信モード</button>
+  </div>
+  <div id="content"></div>
+</div>
+
+<script>
+// ============================================================
+// データ定義
+// choices[0] が常に正解。表示時にシャッフルする。
+// ============================================================
+const SECTIONS = [
+  {
+    id: 1,
+    label: "基本①",
+    subtitle: "電荷・電場・電位・クーロンの法則・ガウスの法則",
+    available: true,
+    questions: [
+      {
+        id: 1,
+        text: "電気現象を生じさせるものを何というか。",
+        choices: ["電荷", "電流", "電圧", "磁場"]
+      },
+      {
+        id: 2,
+        text: "電荷がもつ電気的な性質の量を電気量という。その記号と単位の組み合わせとして正しいものはどれか。",
+        choices: ["Q, q [C]", "C [F]", "E [V/m]", "V [V]"]
+      },
+      {
+        id: 3,
+        text: "電気量の単位 C の読み方として正しいものはどれか。",
+        choices: ["クーロン", "アンペア", "ボルト", "オーム"]
+      },
+      {
+        id: 4,
+        text: "電荷と電荷の間にはたらく力を何というか。",
+        choices: ["静電気力（クーロン力）", "磁気力", "重力", "弾性力"]
+      },
+      {
+        id: 5,
+        text: "電荷に対して電気力をおよぼすような空間を何というか。",
+        choices: ["電場", "磁場", "重力場", "電位"]
+      },
+      {
+        id: 6,
+        text: "電場とはどのように定義されるか。",
+        choices: [
+          "単位電気量（1 C）の正電荷にはたらく力",
+          "電荷にはたらく力",
+          "−1C の負電荷にはたらく力",
+          "単位面積あたりにはたらく力"
+        ]
+      },
+      {
+        id: 7,
+        text: "電場の記号として正しいものはどれか。",
+        choices: ["E", "B", "V", "F"]
+      },
+      {
+        id: 8,
+        text: "電場の単位として主に使われるものはどれか。",
+        choices: ["N/C", "N", "C", "NC"]
+      },
+      {
+        id: 9,
+        text: "電位とはどのように定義されるか。",
+        choices: [
+          "単位電気量（1 C）あたりの静電気力による位置エネルギー",
+          "静電気力による位置エネルギー",
+          "磁気力による位置エネルギー",
+          "単位電場あたりの静電気力による位置エネルギー"
+        ]
+      },
+      {
+        id: 10,
+        text: "電位の単位として主に使われるものはどれか。",
+        choices: ["V", "E", "B", "W"]
+      },
+      {
+        id: 11,
+        text: "電気量が \\(q_1\\)、\\(q_2\\) の2つの電荷間にはたらく電気力に関する法則を何というか。",
+        choices: [
+          "電気力に関するクーロンの法則",
+          "ガウスの法則",
+          "アンペールの法則",
+          "ファラデーの電磁誘導の法則"
+        ]
+      },
+      {
+        id: 12,
+        text: "電気量が \\(q_1\\)、\\(q_2\\) の2つの電荷間にはたらく静電気力の大きさ \\(F\\) を表す式はどれか。距離を \\(r\\)、クーロンの法則の比例定数を \\(k\\) とする。",
+        choices: [
+          "\\(F = k\\dfrac{|q_1||q_2|}{r^2}\\)",
+          "\\(F = \\dfrac{|q_1||q_2|}{r^2}\\)",
+          "\\(F = k\\dfrac{|q_1||q_2|}{r}\\)",
+          "\\(F = -k\\dfrac{|q_1||q_2|}{r^2}\\)"
+        ]
+      },
+      {
+        id: 13,
+        text: "ガウスの法則：任意の閉曲面を外向きに垂直に貫く電気力線の本数 \\(N\\) を表す式はどれか。閉曲面に含まれる電気量を \\(Q\\)、クーロンの比例定数を \\(k\\) とする。",
+        choices: [
+          "\\(N = 4\\pi kQ\\)",
+          "\\(N = 2\\pi kQ\\)",
+          "\\(N = 4kQ\\)",
+          "\\(N = \\dfrac{Q}{4\\pi k}\\)"
+        ]
+      },
+      {
+        id: 14,
+        text: "ガウスの法則：任意の閉曲面を外向きに垂直に貫く電気力線の本数 \\(N\\) を表す式はどれか。閉曲面に含まれる電気量を \\(Q\\)、誘電率を \\(\\varepsilon\\) とする。",
+        choices: [
+          "\\(N = \\dfrac{Q}{\\varepsilon}\\)",
+          "\\(N = 4\\pi\\varepsilon Q\\)",
+          "\\(N = \\varepsilon Q\\)",
+          "\\(N = \\dfrac{Q}{4\\pi\\varepsilon}\\)"
+        ]
+      },
+      {
+        id: 15,
+        text: "単位面積を垂直に \\(E\\) 本の電気力線が貫くとき、この面における電場の強さはいくらか。ただし、断面積を \\(S\\)、クーロンの比例定数を \\(k\\) とする。",
+        choices: [
+          "\\(E\\)",
+          "\\(ES\\)",
+          "\\(\\dfrac{E}{S}\\)",
+          "\\(\\dfrac{E}{4\\pi k}\\)"
+        ]
+      },
+      {
+        id: 16,
+        text: "2 m² の面に電気力線が 10 本貫いているとき、この面における電場の大きさはいくらか。",
+        choices: ["5 N/C", "5 NC", "10 N/C", "10 NC"]
+      },
+      {
+        id: 17,
+        text: "\\(q_1\\,\\mathrm{[C]}\\) の点電荷から距離 \\(r\\) 離れた点につくる電場の強さを表す式はどれか。クーロンの比例定数を \\(k\\) とする。",
+        choices: [
+          "\\(E = k\\dfrac{q_1}{r^2}\\)",
+          "\\(E = k\\dfrac{q_1^2}{r^2}\\)",
+          "\\(E = k\\dfrac{q_1}{r}\\)",
+          "\\(E = -k\\dfrac{q_1}{r^2}\\)"
+        ]
+      },
+      {
+        id: 18,
+        text: "\\(q_1\\,\\mathrm{[C]}\\) の点電荷から距離 \\(r\\) 離れた点につくる電位を表す式はどれか。クーロンの比例定数を \\(k\\) とする。",
+        choices: [
+          "\\(V = k\\dfrac{q_1}{r}\\)",
+          "\\(V = k\\dfrac{q_1^2}{r}\\)",
+          "\\(V = k\\dfrac{q_1}{r^2}\\)",
+          "\\(V = -k\\dfrac{q_1}{r}\\)"
+        ]
+      },
+      {
+        id: 19,
+        text: "点電荷の周りにできる電場はどのような電場か。",
+        choices: [
+          "距離の2乗に反比例する電場",
+          "一様電場（どこでも大きさと向きが同じ電場）",
+          "距離に反比例する電場",
+          "距離の2乗に比例する電場"
+        ]
+      },
+      {
+        id: 20,
+        text: "一様電場 \\(E\\) の中で、A点から距離 \\(d\\) 離れたB点の電位 \\(V\\) を表す式はどれか。B点のほうが高電位とする。",
+        choices: [
+          "\\(V = Ed\\)",
+          "\\(V = \\dfrac{E}{d}\\)",
+          "\\(V = \\dfrac{1}{2}Ed\\)",
+          "\\(V = \\dfrac{E}{2d}\\)"
+        ]
+      },
+      {
+        id: 21,
+        text: "導体に帯電体を近づけたとき、導体表面に電荷の偏りが生じる現象を何というか。",
+        choices: ["静電誘導", "誘電分極", "静電遮蔽", "電磁誘導"]
+      },
+      {
+        id: 22,
+        text: "不導体（絶縁体）に帯電体を近づけたとき、分子レベルの電荷の偏りが生じ、不導体全体としても正負の偏りが生じる現象を何というか。",
+        choices: ["誘電分極", "静電誘導", "静電遮蔽", "電気分解"]
+      },
+      {
+        id: 23,
+        text: "携帯電話を金属板で全体を覆うと電磁波が届かなくなる。これは金属板内の電子が外部の電場を打ち消すように分布するためである。このような現象を何というか。",
+        choices: ["静電遮蔽", "誘電分極", "静電誘導", "電磁遮蔽"]
+      }
+    ]
+  },
+  { id: 2, label: "基本②", subtitle: "", available: false, questions: [] },
+  { id: 3, label: "基本③", subtitle: "", available: false, questions: [] },
+  { id: 4, label: "基本④", subtitle: "", available: false, questions: [] },
+  { id: 5, label: "基本⑤", subtitle: "", available: false, questions: [] }
+];
+
+// ============================================================
+// 状態管理
+// ============================================================
+let curSec   = 1;
+let curMode  = 'study';
+let orderMode = 'seq'; // 'seq'=学習順  'rand'=ランダム
+
+const ss = {         // 自習モード状態
+  secId    : null,
+  qs       : [],     // シャッフル済み問題リスト
+  idx      : 0,      // 現在の問題インデックス
+  answered : false,
+  correct  : 0,
+  wrong    : 0,
+  chosen   : []      // 現在の問題のシャッフル済み選択肢インデックス配列
+};
+
+const submitCache = {}; // secId -> 各問題の選択肢シャッフル済みインデックス配列
+
+// ============================================================
+// 各問題の解説文
+// ============================================================
+const EXPLANATIONS = {
+  1 : "電気現象を生じさせる源。正電荷（＋）と負電荷（－）の2種類があり、同符号は反発、異符号は引き合う。",
+  2 : "電気量の記号はQ・q、単位はクーロン[C]。Fはファラッド（静電容量）、V はボルト（電位）の単位。",
+  3 : "フランスの物理学者クーロン（Coulomb）の名にちなんだ単位。電荷量を表す基本単位。",
+  4 : "電荷間にはたらく静電気力（クーロン力）は、クーロンの法則 \\(F=k|q_1||q_2|/r^2\\) に従う。",
+  5 : "電気力が作用する空間を電場（電界）という。電場の中に電荷を置くと静電気力を受ける。",
+  6 : "電場 \\(E\\) は「1Cの正電荷にはたらく力」と定義する。電荷 \\(q\\) にはたらく力は \\(F=qE\\)。",
+  7 : "電場の記号は \\(E\\)（Electric field の頭文字）。磁場は \\(B\\)、電位は \\(V\\)。",
+  8 : "電場の単位は N/C（ニュートン毎クーロン）。V/m（ボルト毎メートル）と同じ大きさ。",
+  9 : "電位 \\(V=U/q\\)（\\(U\\)：位置エネルギー、\\(q\\)：電気量）。1Cあたりの位置エネルギーが電位。",
+  10: "電位の単位はボルト[V]（Volt）。1V＝1J/C（1クーロンあたり1ジュール）。",
+  11: "クーロンが実験で発見した法則。2点電荷間の静電気力の大きさを記述する基本法則。",
+  12: "クーロンの法則 \\(F=k|q_1||q_2|/r^2\\)。力は距離の2乗に反比例し、電気量の積に比例する。比例定数 \\(k\\approx9\\times10^9\\) N·m²/C²。",
+  13: "ガウスの法則（k表示）：点電荷 \\(Q\\) から出る電気力線の総本数は \\(4\\pi kQ\\) 本。",
+  14: "ガウスの法則（\\(\\varepsilon\\) 表示）：\\(k=1/(4\\pi\\varepsilon)\\) の関係から \\(4\\pi kQ=Q/\\varepsilon\\) となる。",
+  15: "電場の強さ＝単位面積を貫く電気力線の本数（電気力線密度）。\\(E\\) 本/m² ならば電場は \\(E\\) [N/C]。",
+  16: "電場の強さ＝電気力線の本数÷断面積＝10÷2＝5 [N/C]。単位 NC は意味をもたないので誤り。",
+  17: "点電荷 \\(q_1\\) から距離 \\(r\\) の点の電場は \\(E=kq_1/r^2\\)。クーロンの法則 \\(F=qE\\) から導かれる。",
+  18: "点電荷 \\(q_1\\) から距離 \\(r\\) の点の電位は \\(V=kq_1/r\\)。電場（\\(r^2\\) に反比例）と違い \\(r\\) に反比例する点に注意。",
+  19: "点電荷の電場 \\(E=kq/r^2\\) は \\(r^2\\) に反比例する非一様電場。一様電場は平行板コンデンサーなどで生じる。",
+  20: "一様電場では電位差＝電場×距離。\\(V=Ed\\)（単位：[V/m]×[m]＝[V]）で確認できる。",
+  21: "静電誘導：導体中の自由電子が外部電荷に引かれて移動し、表面に正負の電荷の偏りが生じる現象。",
+  22: "誘電分極：不導体では自由電子がないため分子レベルで偏りが生じ、全体として正負の偏りが現れる現象。",
+  23: "静電遮蔽（ファラデーケージ）：導体内部で外部電場が打ち消され電場が0になる。電子機器の電磁シールドに利用される。"
+};
+
+// ============================================================
+// 送信モード状態
+// ============================================================
+const sm = {
+  secId   : null,
+  num     : '',   // 組番号
+  name    : '',
+  started : false,
+  idx     : 0,
+  answered: false,
+  answers : {},   // {qId: 選択した元インデックス}
+  chosen  : []    // 現在の問題のシャッフル済み選択肢インデックス
+};
+
+// ============================================================
+// ユーティリティ
+// ============================================================
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function doMath(el) {
+  if (window.renderMathInElement) {
+    renderMathInElement(el, {
+      delimiters: [
+        { left: '\\(', right: '\\)', display: false },
+        { left: '\\[', right: '\\]', display: true  }
+      ],
+      throwOnError: false
+    });
+  }
+}
+
+// ============================================================
+// タブ・モード
+// ============================================================
+function buildTabs() {
+  document.getElementById('tabs').innerHTML = SECTIONS.map(s => `
+    <div class="tab ${s.id === curSec ? 'active' : ''} ${!s.available ? 'disabled' : ''}"
+         onclick="${s.available ? `setSec(${s.id})` : ''}">
+      ${s.label}
+    </div>
+  `).join('');
+}
+
+function setSec(id) {
+  curSec = id;
+  ss.secId    = null; // セクション変更→自習状態リセット
+  sm.started  = false; // 送信モードも最初に戻す
+  buildTabs();
+  render();
+}
+
+function setMode(mode) {
+  curMode = mode;
+  document.getElementById('modeStudy' ).classList.toggle('active', mode === 'study' );
+  document.getElementById('modeSubmit').classList.toggle('active', mode === 'submit');
+  render();
+}
+
+// ============================================================
+// メインレンダー
+// ============================================================
+function render() {
+  const sec = SECTIONS.find(s => s.id === curSec);
+  document.getElementById('hdrSub').textContent = sec.subtitle || '';
+
+  if (!sec.available) {
+    document.getElementById('content').innerHTML = `
+      <div class="coming-card">
+        <div class="coming-icon">🔧</div>
+        <div class="coming-title">準備中</div>
+        <div class="coming-text">${sec.label} は現在準備中です。</div>
+      </div>`;
+    return;
+  }
+
+  if (curMode === 'study') renderStudy(sec);
+  else                      renderSubmit(sec);
+}
+
+// ============================================================
+// 自習モード
+// ============================================================
+function setOrderMode(mode) {
+  orderMode   = mode;
+  ss.secId    = null; // 切替時に出題をリセット
+  ss.chosen   = [];
+  render();
+}
+
+function startStudy(sec) {
+  ss.secId    = sec.id;
+  ss.qs       = orderMode === 'rand'
+                  ? shuffle(sec.questions)
+                  : [...sec.questions]; // 学習順：Q1から順番
+  ss.idx      = 0;
+  ss.answered = false;
+  ss.correct  = 0;
+  ss.wrong    = 0;
+  ss.chosen   = [];
+  renderStudy(sec);
+}
+
+function renderStudy(sec) {
+  if (ss.secId !== sec.id || ss.qs.length === 0) {
+    startStudy(sec);
+    return;
+  }
+  if (ss.idx >= ss.qs.length) {
+    renderResult(sec);
+    return;
+  }
+
+  const q     = ss.qs[ss.idx];
+  const total = ss.qs.length;
+  const pct   = Math.round((ss.idx / total) * 100);
+
+  // 未回答時のみ選択肢をシャッフル
+  if (ss.chosen.length === 0) {
+    ss.chosen = shuffle(q.choices.map((_, i) => i));
+  }
+
+  const el = document.getElementById('content');
+  el.innerHTML = `
+    <div class="order-row">
+      <span class="order-label">出題順：</span>
+      <button class="order-btn ${orderMode === 'seq'  ? 'active' : ''}"
+              onclick="setOrderMode('seq')">学習順</button>
+      <button class="order-btn ${orderMode === 'rand' ? 'active' : ''}"
+              onclick="setOrderMode('rand')">ランダム</button>
+    </div>
+    <div class="prog-row">
+      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+      <div class="prog-text">${ss.idx + 1} / ${total}</div>
+    </div>
+    <div class="score-row" id="scoreRow">✅ ${ss.correct} &nbsp;❌ ${ss.wrong}</div>
+
+    <div class="q-card">
+      <div class="q-num">問 ${q.id}</div>
+      <div class="q-text">${q.text}</div>
+    </div>
+
+    <div class="choices" id="clist">
+      ${ss.chosen.map((ci, pos) => `
+        <button class="choice-btn" id="cb${pos}" onclick="pick(${pos})"
+                ${ss.answered ? 'disabled' : ''}>
+          ${q.choices[ci]}
+        </button>`).join('')}
+    </div>
+
+    <div class="feedback" id="fb"></div>
+
+    <button class="next-btn" id="nb" onclick="nextQ()" style="display:none;">
+      ${ss.idx + 1 < total ? '次の問題 →' : '結果を見る →'}
+    </button>
+  `;
+
+  doMath(el);
+}
+
+function pick(pos) {
+  if (ss.answered) return;
+  ss.answered = true;
+
+  const q         = ss.qs[ss.idx];
+  const isCorrect = ss.chosen[pos] === 0; // choices[0] が正解
+
+  if (isCorrect) ss.correct++;
+  else           ss.wrong++;
+
+  // ボタンのスタイル更新
+  ss.chosen.forEach((ci, p) => {
+    const btn = document.getElementById(`cb${p}`);
+    if (!btn) return;
+    btn.disabled = true;
+    if (ci === 0)      btn.classList.add('correct');
+    else if (p === pos) btn.classList.add('wrong');
+  });
+
+  // フィードバック
+  const fb = document.getElementById('fb');
+  if (isCorrect) {
+    fb.className = 'feedback ok';
+    fb.innerHTML = '✅ 正解です！';
+  } else {
+    fb.className = 'feedback ng';
+    fb.innerHTML = `❌ 不正解。正解は「${q.choices[0]}」です。`;
+    doMath(fb);
+  }
+
+  // スコア更新
+  document.getElementById('scoreRow').innerHTML = `✅ ${ss.correct} &nbsp;❌ ${ss.wrong}`;
+
+  // 次へボタン表示
+  document.getElementById('nb').style.display = 'block';
+}
+
+function nextQ() {
+  ss.idx++;
+  ss.answered = false;
+  ss.chosen   = [];
+  renderStudy(SECTIONS.find(s => s.id === curSec));
+}
+
+function renderResult(sec) {
+  const total = ss.qs.length;
+  const c     = ss.correct;
+  const pct   = Math.round((c / total) * 100);
+  const emoji = pct >= 90 ? '🎉' : pct >= 70 ? '👍' : pct >= 50 ? '🤔' : '😢';
+
+  document.getElementById('content').innerHTML = `
+    <div class="result-card">
+      <div class="result-emoji">${emoji}</div>
+      <div class="result-score">${c}</div>
+      <div class="result-total">/ ${total} 問正解</div>
+      <div class="result-pct">正答率 ${pct}%</div>
+      <button class="retry-btn"
+              onclick="startStudy(SECTIONS.find(s=>s.id===${curSec}))">
+        🔄 もう一度やり直す
+      </button>
+    </div>`;
+}
+
+// ============================================================
+// 送信モード
+// ============================================================
+function renderSubmit(sec) {
+  if (sm.secId !== sec.id || !sm.started) {
+    renderSubmitIntro(sec);
+    return;
+  }
+  if (sm.idx >= sec.questions.length) {
+    renderSubmitFinal(sec);
+    return;
+  }
+  renderSubmitQuestion(sec);
+}
+
+/* ── 氏名入力画面 ── */
+function renderSubmitIntro(sec) {
+  document.getElementById('content').innerHTML = `
+    <div class="name-card">
+      <label class="name-label" for="snum">組番号を入力してください</label>
+      <input type="number" class="name-input" id="snum"
+             placeholder="例：801～940"
+             min="801" max="940"
+             value="${sm.secId === sec.id ? sm.num : ''}">
+    </div>
+    <div class="name-card">
+      <label class="name-label" for="sname">氏名を入力してください</label>
+      <input type="text" class="name-input" id="sname"
+             placeholder="例：湘南 太郎"
+             value="${sm.secId === sec.id ? sm.name : ''}">
+    </div>
+    <button class="sm-start-btn" onclick="startSubmitQuiz(${sec.id})">
+      ✏️ 回答を開始する（全 ${sec.questions.length} 問）
+    </button>`;
+}
+
+function startSubmitQuiz(secId) {
+  const num  = document.getElementById('snum').value.trim();
+  const name = document.getElementById('sname').value.trim();
+  if (!num)  { alert('組番号を入力してください。'); return; }
+  if (!name) { alert('氏名を入力してください。');   return; }
+  sm.secId    = secId;
+  sm.num      = num;
+  sm.name     = name;
+  sm.started  = true;
+  sm.idx      = 0;
+  sm.answered = false;
+  sm.answers  = {};
+  sm.chosen   = [];
+  renderSubmit(SECTIONS.find(s => s.id === secId));
+}
+
+/* ── 一問表示 ── */
+function renderSubmitQuestion(sec) {
+  const q     = sec.questions[sm.idx];
+  const total = sec.questions.length;
+  const pct   = Math.round((sm.idx / total) * 100);
+
+  if (sm.chosen.length === 0) {
+    sm.chosen = shuffle(q.choices.map((_, i) => i));
+  }
+
+  const expl       = EXPLANATIONS[q.id] || '';
+  const selectedCi = sm.answers[q.id]; // undefined なら未回答
+
+  const el = document.getElementById('content');
+  el.innerHTML = `
+    <div class="prog-row">
+      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+      <div class="prog-text">${sm.idx + 1} / ${total}</div>
+    </div>
+
+    <div class="q-card">
+      <div class="q-num">問 ${q.id}</div>
+      <div class="q-text">${q.text}</div>
+    </div>
+
+    <div class="choices">
+      ${sm.chosen.map((ci, pos) => {
+        let cls = '';
+        if (sm.answered) {
+          if (ci === 0)                           cls = 'correct';
+          else if (ci === selectedCi && ci !== 0) cls = 'wrong';
+        }
+        return `
+          <button class="choice-btn ${cls}" id="smcb${pos}"
+                  onclick="pickSubmit(${pos})"
+                  ${sm.answered ? 'disabled' : ''}>
+            ${q.choices[ci]}
+          </button>`;
+      }).join('')}
+    </div>
+
+    ${sm.answered ? `
+      <div class="sm-explanation">
+        <span class="sm-expl-icon">💡</span>
+        <span>${expl}</span>
+      </div>
+      <button class="next-btn" onclick="nextSubmitQ()">
+        ${sm.idx + 1 < total ? '次の問題 →' : '✅ 送信画面へ →'}
+      </button>
+    ` : ''}
+  `;
+
+  doMath(el);
+}
+
+function pickSubmit(pos) {
+  if (sm.answered) return;
+  sm.answered = true;
+  const sec = SECTIONS.find(s => s.id === sm.secId);
+  const q   = sec.questions[sm.idx];
+  sm.answers[q.id] = sm.chosen[pos]; // 元インデックスを保存
+  renderSubmitQuestion(sec);
+}
+
+function nextSubmitQ() {
+  sm.idx++;
+  sm.answered = false;
+  sm.chosen   = [];
+  renderSubmit(SECTIONS.find(s => s.id === sm.secId));
+}
+
+/* ── 送信確認画面 ── */
+function renderSubmitFinal(sec) {
+  document.getElementById('content').innerHTML = `
+    <div class="sm-final-card">
+      <div class="sm-final-icon">📝</div>
+      <div class="sm-final-title">全 ${sec.questions.length} 問の回答が完了しました</div>
+      <div class="sm-final-name">${sm.name} さん</div>
+      <button class="submit-btn" id="sbtn" onclick="doSubmit(${sec.id})">
+        📤 回答を送信する
+      </button>
+      <div id="sresult"></div>
+    </div>`;
+}
+
+// ★ デプロイ後にGAS URLをここに設定 ★
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyAjlUhE_zrHJxJl6FxAeSHhFpCWq4kBT30dk2mezhRexGHefrX2qLrfZItOhezzdPqNQ/exec';
+
+let _gasParams = null; // 再送信用パラメータ
+let _gasMeta   = null; // 再送信用メタ情報
+
+function doSubmit(secId) {
+  const sec = SECTIONS.find(s => s.id === secId);
+  let correct = 0;
+  sec.questions.forEach(q => { if (sm.answers[q.id] === 0) correct++; });
+
+  _gasMeta = {
+    num: sm.num, name: sm.name,
+    correct, total: sec.questions.length
+  };
+  _gasParams = new URLSearchParams({
+    num      : sm.num,
+    name     : sm.name,
+    section  : sec.label,
+    correct  : String(correct),
+    total    : String(sec.questions.length),
+    answers  : JSON.stringify(sm.answers),
+    timestamp: new Date().toLocaleString('ja-JP')
+  });
+
+  const btn = document.getElementById('sbtn');
+  btn.disabled    = true;
+  btn.textContent = '📤 送信中…';
+
+  trySend(btn, 1);
+}
+
+async function trySend(btn, attempt) {
+  const MAX_RETRY = 3;
+  try {
+    if (btn) {
+      btn.textContent = attempt === 1
+        ? '📤 送信中…'
+        : `🔄 再送信中… (${attempt}/${MAX_RETRY})`;
+    }
+
+    // GETリクエスト（no-cors：CORSエラーを回避）
+    await fetch(`${GAS_URL}?${_gasParams}`, { method: 'GET', mode: 'no-cors' });
+
+    // 例外なく完了 → GASに到達したと判断
+    const { num, name, correct, total } = _gasMeta;
+    document.getElementById('sresult').innerHTML = `
+      <div class="sub-result ok">
+        ✅ 送信完了しました。お疲れ様でした！<br>
+        <strong>${num}　${name}</strong> さんの得点：<strong>${correct} / ${total}</strong>
+      </div>`;
+
+  } catch (e) {
+    if (attempt < MAX_RETRY) {
+      await new Promise(r => setTimeout(r, 2000)); // 2秒待ってリトライ
+      await trySend(btn, attempt + 1);
+    } else {
+      // 全リトライ失敗
+      const { num, name, correct, total } = _gasMeta;
+      document.getElementById('sresult').innerHTML = `
+        <div class="sub-result warn">
+          ❌ 送信に失敗しました。ネットワークを確認してもう一度お試しください。<br>
+          <strong>${num}　${name}</strong> さんの得点：<strong>${correct} / ${total}</strong>
+        </div>`;
+      if (btn) { btn.disabled = false; btn.textContent = '📤 もう一度送信する'; }
+    }
+  }
+}
+
+// ============================================================
+// 初期化
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  buildTabs();
+  document.getElementById('modeStudy').classList.add('active');
+  render();
+});
+</script>
+</body>
+</html>
