@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>電磁気（静電気）学習クイズ</title>
+  <title>電磁気（静電気）</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
@@ -25,12 +25,13 @@
     .hdr-sub{font-size:12px;opacity:.8;margin-top:4px;min-height:1em;}
 
     /* ===== セクションタブ ===== */
+    .tabs-wrap{background:#1e3a8a;}
     .tabs{
-      display:flex;background:#1e3a8a;
+      display:flex;max-width:600px;margin:0 auto;
       overflow-x:auto;-webkit-overflow-scrolling:touch;
     }
     .tab{
-      flex:1;min-width:60px;padding:10px 4px;text-align:center;
+      flex:1;min-width:0;padding:10px 4px;text-align:center;
       font-size:13px;font-weight:600;color:rgba(255,255,255,.5);
       cursor:pointer;border-bottom:3px solid transparent;
       transition:all .2s;user-select:none;white-space:nowrap;
@@ -188,6 +189,26 @@
     .coming-title{font-size:18px;font-weight:600;color:#374151;margin-bottom:8px;}
     .coming-text{font-size:14px;}
 
+    /* ===== 初学モード：解答・解説 ===== */
+    .intro-answer{
+      background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;
+      padding:14px 18px;margin-bottom:14px;
+    }
+    .intro-answer-label{font-size:11px;font-weight:700;color:#059669;letter-spacing:.5px;margin-bottom:6px;}
+    .intro-answer-text{font-size:16px;font-weight:700;color:#065f46;margin-bottom:10px;line-height:1.6;}
+    .intro-expl{font-size:13.5px;line-height:1.75;color:#374151;border-top:1px dashed #a7f3d0;padding-top:10px;}
+    .intro-expl-icon{margin-right:4px;}
+
+    /* ===== 初学モード完了カード ===== */
+    .done-card{
+      background:#fff;border-radius:16px;padding:40px 24px;
+      text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.1);
+    }
+    .done-icon{font-size:52px;margin-bottom:14px;}
+    .done-title{font-size:18px;font-weight:700;color:#1a202c;margin-bottom:6px;}
+    .done-sub{font-size:13px;color:#64748b;margin-bottom:24px;}
+    .done-actions{display:flex;flex-direction:column;gap:10px;}
+
     /* ===== 学習順/ランダム切替 ===== */
     .order-row{
       display:flex;align-items:center;gap:6px;margin-bottom:10px;
@@ -210,15 +231,18 @@
 
 <header>
   <div class="hdr-school">神奈川県立湘南高等学校　物理</div>
-  <div class="hdr-title">⚡ 電磁気（静電気）学習クイズ</div>
+  <div class="hdr-title">⚡ 電磁気（静電気）</div>
   <div class="hdr-sub" id="hdrSub"></div>
 </header>
 
-<div class="tabs" id="tabs"></div>
+<div class="tabs-wrap">
+  <div class="tabs" id="tabs"></div>
+</div>
 
 <div class="main">
   <div class="mode-row">
-    <button class="mode-btn" id="modeStudy" onclick="setMode('study')">📖 自習モード</button>
+    <button class="mode-btn" id="modeIntro"  onclick="setMode('intro')">🔰 初学モード</button>
+    <button class="mode-btn" id="modeStudy"  onclick="setMode('study')">📖 自習モード</button>
     <button class="mode-btn" id="modeSubmit" onclick="setMode('submit')">📤 送信モード</button>
   </div>
   <div id="content"></div>
@@ -816,16 +840,20 @@ const SECTIONS = [
         ]
       }
     ]
-  },
-  { id: 5, label: "基本⑤", subtitle: "", available: false, questions: [] }
+  }
 ];
 
 // ============================================================
 // 状態管理
 // ============================================================
 let curSec   = 1;
-let curMode  = 'study';
+let curMode  = 'study'; // 'intro' | 'study' | 'submit'
 let orderMode = 'seq'; // 'seq'=学習順  'rand'=ランダム
+
+const im = {         // 初学モード状態
+  secId : null,
+  idx   : 0
+};
 
 const ss = {         // 自習モード状態
   secId    : null,
@@ -967,14 +995,16 @@ function buildTabs() {
 
 function setSec(id) {
   curSec = id;
-  ss.secId    = null; // セクション変更→自習状態リセット
-  sm.started  = false; // 送信モードも最初に戻す
+  im.secId    = null; // セクション変更→各モード状態リセット
+  ss.secId    = null;
+  sm.started  = false;
   buildTabs();
   render();
 }
 
 function setMode(mode) {
   curMode = mode;
+  document.getElementById('modeIntro' ).classList.toggle('active', mode === 'intro' );
   document.getElementById('modeStudy' ).classList.toggle('active', mode === 'study' );
   document.getElementById('modeSubmit').classList.toggle('active', mode === 'submit');
   render();
@@ -997,8 +1027,77 @@ function render() {
     return;
   }
 
-  if (curMode === 'study') renderStudy(sec);
-  else                      renderSubmit(sec);
+  if      (curMode === 'intro')  renderIntro(sec);
+  else if (curMode === 'study')  renderStudy(sec);
+  else                            renderSubmit(sec);
+}
+
+// ============================================================
+// 初学モード：選択肢なし・解答と解説をはじめから表示
+// ============================================================
+function renderIntro(sec) {
+  if (im.secId !== sec.id) {
+    im.secId = sec.id;
+    im.idx   = 0;
+  }
+  if (im.idx >= sec.questions.length) {
+    renderIntroDone(sec);
+    return;
+  }
+
+  const q     = sec.questions[im.idx];
+  const total = sec.questions.length;
+  const pct   = Math.round((im.idx / total) * 100);
+  const expl  = EXPLANATIONS[q.id] || '';
+
+  const el = document.getElementById('content');
+  el.innerHTML = `
+    <div class="prog-row">
+      <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+      <div class="prog-text">${im.idx + 1} / ${total}</div>
+    </div>
+
+    <div class="q-card">
+      <div class="q-num">問 ${q.id}</div>
+      ${q.image ? `<img class="q-img" src="${q.image}" alt="図${q.id}">` : ''}
+      <div class="q-text">${q.text}</div>
+    </div>
+
+    <div class="intro-answer">
+      <div class="intro-answer-label">✅ 解答</div>
+      <div class="intro-answer-text">${q.choices[0]}</div>
+      <div class="intro-expl"><span class="intro-expl-icon">💡</span>${expl}</div>
+    </div>
+
+    <button class="next-btn" onclick="nextIntroQ()">
+      ${im.idx + 1 < total ? '次の問題 →' : '✅ セクション修了 →'}
+    </button>
+  `;
+
+  doMath(el);
+}
+
+function nextIntroQ() {
+  im.idx++;
+  renderIntro(SECTIONS.find(s => s.id === curSec));
+}
+
+function renderIntroDone(sec) {
+  document.getElementById('content').innerHTML = `
+    <div class="done-card">
+      <div class="done-icon">🎓</div>
+      <div class="done-title">${sec.label}（${sec.subtitle}）の学習が終わりました</div>
+      <div class="done-sub">全 ${sec.questions.length} 問を確認しました。次は自習モードで理解度を確かめましょう。</div>
+      <div class="done-actions">
+        <button class="next-btn" onclick="restartIntro()">🔄 もう一度読み直す</button>
+        <button class="next-btn" style="background:#059669;" onclick="setMode('study')">📖 自習モードへ進む</button>
+      </div>
+    </div>`;
+}
+
+function restartIntro() {
+  im.idx = 0;
+  renderIntro(SECTIONS.find(s => s.id === curSec));
 }
 
 // ============================================================
