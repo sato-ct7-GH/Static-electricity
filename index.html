@@ -67,6 +67,11 @@
       border-left:4px solid #2563eb;
     }
     .q-num{font-size:11px;font-weight:700;color:#2563eb;margin-bottom:7px;letter-spacing:.5px;}
+    .retry-badge{
+      display:inline-block;background:#fff7ed;border:1.5px solid #fb923c;
+      color:#c2410c;font-size:12px;font-weight:700;
+      padding:5px 12px;border-radius:20px;margin-bottom:10px;
+    }
     .q-img{display:block;max-width:33%;height:auto;border-radius:8px;margin-bottom:12px;border:1px solid #e2e8f0;}
     .q-text{font-size:15px;line-height:1.75;}
 
@@ -106,6 +111,7 @@
     .result-score{font-size:56px;font-weight:800;color:#2563eb;line-height:1;}
     .result-total{font-size:17px;color:#64748b;margin-bottom:6px;}
     .result-pct{font-size:28px;font-weight:700;color:#374151;margin-bottom:28px;}
+    .result-actions{display:flex;flex-direction:column;gap:10px;}
     .retry-btn{
       padding:12px 36px;background:#2563eb;color:#fff;border:none;
       border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;
@@ -855,14 +861,17 @@ const im = {         // 初学モード状態
   idx   : 0
 };
 
-const ss = {         // 自習モード状態
-  secId    : null,
-  qs       : [],     // シャッフル済み問題リスト
-  idx      : 0,      // 現在の問題インデックス
-  answered : false,
-  correct  : 0,
-  wrong    : 0,
-  chosen   : []      // 現在の問題のシャッフル済み選択肢インデックス配列
+const ss = {          // 自習モード状態
+  secId      : null,
+  total      : 0,        // セクション全問題数
+  queue      : [],        // 出題キュー（不正解は末尾に再投入）
+  solved     : new Set(), // 正解済みID
+  attempted  : new Set(), // 解答済みID（1回目判定用）
+  answered   : false,
+  correct    : 0,         // 1回目正解数
+  wrong      : 0,         // 1回目不正解数
+  lastCorrect: false,
+  chosen     : []
 };
 
 const submitCache = {}; // secId -> 各問題の選択肢シャッフル済みインデックス配列
@@ -947,14 +956,19 @@ const EXPLANATIONS = {
 // 送信モード状態
 // ============================================================
 const sm = {
-  secId   : null,
-  num     : '',   // 組番号
-  name    : '',
-  started : false,
-  idx     : 0,
-  answered: false,
-  answers : {},   // {qId: 選択した元インデックス}
-  chosen  : []    // 現在の問題のシャッフル済み選択肢インデックス
+  secId              : null,
+  num                : '',
+  name               : '',
+  started            : false,
+  total              : 0,
+  queue              : [],
+  solved             : new Set(),
+  attempted          : new Set(),
+  firstAttemptCorrect: {},  // 問題ID → 1回目解答が正解だったか
+  answered           : false,
+  lastCorrect        : false,
+  lastPickedCi       : null, // 直前に選んだ選択肢の元インデックス
+  chosen             : []
 };
 
 // ============================================================
@@ -1104,40 +1118,42 @@ function restartIntro() {
 // 自習モード
 // ============================================================
 function setOrderMode(mode) {
-  orderMode   = mode;
-  ss.secId    = null; // 切替時に出題をリセット
-  ss.chosen   = [];
+  orderMode  = mode;
+  ss.secId   = null;
+  ss.chosen  = [];
   render();
 }
 
 function startStudy(sec) {
-  ss.secId    = sec.id;
-  ss.qs       = orderMode === 'rand'
-                  ? shuffle(sec.questions)
-                  : [...sec.questions]; // 学習順：Q1から順番
-  ss.idx      = 0;
-  ss.answered = false;
-  ss.correct  = 0;
-  ss.wrong    = 0;
-  ss.chosen   = [];
+  ss.secId      = sec.id;
+  ss.total      = sec.questions.length;
+  ss.queue      = orderMode === 'rand'
+                    ? shuffle(sec.questions)
+                    : [...sec.questions];
+  ss.solved     = new Set();
+  ss.attempted  = new Set();
+  ss.answered   = false;
+  ss.correct    = 0;
+  ss.wrong      = 0;
+  ss.lastCorrect = false;
+  ss.chosen     = [];
   renderStudy(sec);
 }
 
 function renderStudy(sec) {
-  if (ss.secId !== sec.id || ss.qs.length === 0) {
+  if (ss.secId !== sec.id || (ss.queue.length === 0 && ss.solved.size === 0)) {
     startStudy(sec);
     return;
   }
-  if (ss.idx >= ss.qs.length) {
+  if (ss.queue.length === 0) {
     renderResult(sec);
     return;
   }
 
-  const q     = ss.qs[ss.idx];
-  const total = ss.qs.length;
-  const pct   = Math.round((ss.idx / total) * 100);
+  const q       = ss.queue[0];
+  const isRetry = ss.attempted.has(q.id);
+  const pct     = Math.round((ss.solved.size / ss.total) * 100);
 
-  // 未回答時のみ選択肢をシャッフル
   if (ss.chosen.length === 0) {
     ss.chosen = shuffle(q.choices.map((_, i) => i));
   }
@@ -1153,10 +1169,11 @@ function renderStudy(sec) {
     </div>
     <div class="prog-row">
       <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
-      <div class="prog-text">${ss.idx + 1} / ${total}</div>
+      <div class="prog-text">${ss.solved.size} / ${ss.total} 問正解</div>
     </div>
     <div class="score-row" id="scoreRow">✅ ${ss.correct} &nbsp;❌ ${ss.wrong}</div>
 
+    ${isRetry ? `<div class="retry-badge">🔄 再チャレンジ問題</div>` : ''}
     <div class="q-card">
       <div class="q-num">問 ${q.id}</div>
       ${q.image ? `<img class="q-img" src="${q.image}" alt="図${q.id}">` : ''}
@@ -1174,7 +1191,7 @@ function renderStudy(sec) {
     <div class="feedback" id="fb"></div>
 
     <button class="next-btn" id="nb" onclick="nextQ()" style="display:none;">
-      ${ss.idx + 1 < total ? '次の問題 →' : '結果を見る →'}
+      次の問題 →
     </button>
   `;
 
@@ -1185,22 +1202,26 @@ function pick(pos) {
   if (ss.answered) return;
   ss.answered = true;
 
-  const q         = ss.qs[ss.idx];
-  const isCorrect = ss.chosen[pos] === 0; // choices[0] が正解
+  const q            = ss.queue[0];
+  const isCorrect    = ss.chosen[pos] === 0;
+  const firstAttempt = !ss.attempted.has(q.id);
 
-  if (isCorrect) ss.correct++;
-  else           ss.wrong++;
+  if (firstAttempt) {
+    ss.attempted.add(q.id);
+    if (isCorrect) ss.correct++;
+    else           ss.wrong++;
+  }
+  if (isCorrect) ss.solved.add(q.id);
+  ss.lastCorrect = isCorrect;
 
-  // ボタンのスタイル更新
   ss.chosen.forEach((ci, p) => {
     const btn = document.getElementById(`cb${p}`);
     if (!btn) return;
     btn.disabled = true;
-    if (ci === 0)      btn.classList.add('correct');
+    if (ci === 0)       btn.classList.add('correct');
     else if (p === pos) btn.classList.add('wrong');
   });
 
-  // フィードバック
   const fb   = document.getElementById('fb');
   const expl = EXPLANATIONS[q.id] || '';
   if (isCorrect) {
@@ -1208,26 +1229,28 @@ function pick(pos) {
     fb.innerHTML = `✅ 正解です！${expl ? `<br><span class="fb-expl">💡 ${expl}</span>` : ''}`;
   } else {
     fb.className = 'feedback ng';
-    fb.innerHTML = `❌ 不正解。正解は「${q.choices[0]}」です。${expl ? `<br><span class="fb-expl">💡 ${expl}</span>` : ''}`;
+    fb.innerHTML = `❌ 不正解。正解は「${q.choices[0]}」です。もう一度あとで出題されます。${expl ? `<br><span class="fb-expl">💡 ${expl}</span>` : ''}`;
   }
   doMath(fb);
 
-  // スコア更新
   document.getElementById('scoreRow').innerHTML = `✅ ${ss.correct} &nbsp;❌ ${ss.wrong}`;
 
-  // 次へボタン表示
-  document.getElementById('nb').style.display = 'block';
+  const nb = document.getElementById('nb');
+  const willFinish = isCorrect && ss.queue.length - 1 === 0;
+  nb.textContent    = willFinish ? '結果を見る →' : '次の問題 →';
+  nb.style.display  = 'block';
 }
 
 function nextQ() {
-  ss.idx++;
+  const q = ss.queue.shift();
+  if (!ss.solved.has(q.id)) ss.queue.push(q); // 不正解は末尾に再投入
   ss.answered = false;
   ss.chosen   = [];
   renderStudy(SECTIONS.find(s => s.id === curSec));
 }
 
 function renderResult(sec) {
-  const total = ss.qs.length;
+  const total = ss.total;
   const c     = ss.correct;
   const pct   = Math.round((c / total) * 100);
   const emoji = pct >= 90 ? '🎉' : pct >= 70 ? '👍' : pct >= 50 ? '🤔' : '😢';
@@ -1236,12 +1259,14 @@ function renderResult(sec) {
     <div class="result-card">
       <div class="result-emoji">${emoji}</div>
       <div class="result-score">${c}</div>
-      <div class="result-total">/ ${total} 問正解</div>
+      <div class="result-total">/ ${total} 問正解（1回目の解答時点）</div>
       <div class="result-pct">正答率 ${pct}%</div>
-      <button class="retry-btn"
-              onclick="startStudy(SECTIONS.find(s=>s.id===${curSec}))">
-        🔄 もう一度やり直す
-      </button>
+      <div class="result-actions">
+        <button class="retry-btn"
+                onclick="startStudy(SECTIONS.find(s=>s.id===${curSec}))">
+          🔄 もう一度やり直す
+        </button>
+      </div>
     </div>`;
 }
 
@@ -1253,7 +1278,7 @@ function renderSubmit(sec) {
     renderSubmitIntro(sec);
     return;
   }
-  if (sm.idx >= sec.questions.length) {
+  if (sm.queue.length === 0) {
     renderSubmitFinal(sec);
     return;
   }
@@ -1286,37 +1311,46 @@ function startSubmitQuiz(secId) {
   const name = document.getElementById('sname').value.trim();
   if (!num)  { alert('組番号を入力してください。'); return; }
   if (!name) { alert('氏名を入力してください。');   return; }
-  sm.secId    = secId;
-  sm.num      = num;
-  sm.name     = name;
-  sm.started  = true;
-  sm.idx      = 0;
-  sm.answered = false;
-  sm.answers  = {};
-  sm.chosen   = [];
-  renderSubmit(SECTIONS.find(s => s.id === secId));
+  const sec = SECTIONS.find(s => s.id === secId);
+  sm.secId               = secId;
+  sm.num                 = num;
+  sm.name                = name;
+  sm.started             = true;
+  sm.startedAt           = Date.now();   // 所要時間の計測用
+  sm.total               = sec.questions.length;
+  sm.queue               = [...sec.questions]; // 送信モードは学習順
+  sm.solved              = new Set();
+  sm.attempted           = new Set();
+  sm.firstAttemptCorrect = {};
+  sm.answered            = false;
+  sm.lastCorrect         = false;
+  sm.lastPickedCi        = null;
+  sm.chosen              = [];
+  renderSubmit(sec);
 }
 
 /* ── 一問表示 ── */
 function renderSubmitQuestion(sec) {
-  const q     = sec.questions[sm.idx];
-  const total = sec.questions.length;
-  const pct   = Math.round((sm.idx / total) * 100);
+  const q       = sm.queue[0];
+  const isRetry = sm.attempted.has(q.id);
+  const pct     = Math.round((sm.solved.size / sm.total) * 100);
 
   if (sm.chosen.length === 0) {
     sm.chosen = shuffle(q.choices.map((_, i) => i));
   }
 
   const expl       = EXPLANATIONS[q.id] || '';
-  const selectedCi = sm.answers[q.id]; // undefined なら未回答
+  const selectedCi = sm.lastPickedCi;
+  const willFinish = sm.answered && sm.lastCorrect && sm.queue.length - 1 === 0;
 
   const el = document.getElementById('content');
   el.innerHTML = `
     <div class="prog-row">
       <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
-      <div class="prog-text">${sm.idx + 1} / ${total}</div>
+      <div class="prog-text">${sm.solved.size} / ${sm.total} 問正解</div>
     </div>
 
+    ${isRetry ? `<div class="retry-badge">🔄 再チャレンジ問題</div>` : ''}
     <div class="q-card">
       <div class="q-num">問 ${q.id}</div>
       ${q.image ? `<img class="q-img" src="${q.image}" alt="図${q.id}">` : ''}
@@ -1345,7 +1379,7 @@ function renderSubmitQuestion(sec) {
         <span>${expl}</span>
       </div>
       <button class="next-btn" onclick="nextSubmitQ()">
-        ${sm.idx + 1 < total ? '次の問題 →' : '✅ 送信画面へ →'}
+        ${willFinish ? '✅ 送信画面へ →' : '次の問題 →'}
       </button>
     ` : ''}
   `;
@@ -1357,15 +1391,28 @@ function pickSubmit(pos) {
   if (sm.answered) return;
   sm.answered = true;
   const sec = SECTIONS.find(s => s.id === sm.secId);
-  const q   = sec.questions[sm.idx];
-  sm.answers[q.id] = sm.chosen[pos]; // 元インデックスを保存
+  const q   = sm.queue[0];
+
+  const isCorrect    = sm.chosen[pos] === 0;
+  const firstAttempt = !sm.attempted.has(q.id);
+
+  if (firstAttempt) {
+    sm.attempted.add(q.id);
+    sm.firstAttemptCorrect[q.id] = isCorrect;
+  }
+  if (isCorrect) sm.solved.add(q.id);
+  sm.lastCorrect  = isCorrect;
+  sm.lastPickedCi = sm.chosen[pos];
+
   renderSubmitQuestion(sec);
 }
 
 function nextSubmitQ() {
-  sm.idx++;
-  sm.answered = false;
-  sm.chosen   = [];
+  const q = sm.queue.shift();
+  if (!sm.solved.has(q.id)) sm.queue.push(q); // 不正解は末尾に再投入
+  sm.answered     = false;
+  sm.chosen       = [];
+  sm.lastPickedCi = null;
   renderSubmit(SECTIONS.find(s => s.id === sm.secId));
 }
 
@@ -1383,86 +1430,137 @@ function renderSubmitFinal(sec) {
     </div>`;
 }
 
-// ★ デプロイ後にGAS URLをここに設定 ★
+// ============================================================
+//  記録送信（学習記録ハブ  スキーマ v1）
+// ============================================================
+// ハブGASのデプロイURL
+const HUB_URL = 'https://script.google.com/macros/s/AKfycbwnV8z1aoFsLF0NEEgFXZEVktKKNVqm8Fnvrm4Z772M1df-VZKJRAljAZBHgRkInIVX/exec';
+
+// 単元マスタ.xlsx「アプリ設定」シートの electrostatics の行から転記
+const APP_ID  = 'electrostatics';
+const UNIT_ID = 'ELE01';
+// ★配列の並びはタブ（基本①〜④）の並びと一致させること
+const SEC_IDS = ['ELE01-S1', 'ELE01-S2', 'ELE01-S3', 'ELE01-S4'];
+
+// 移行期のみ true。旧スプレッドシート（回答_基本①〜④）にも同じ内容を送る。
+// ハブ側で記録できていることを確認したら false にする。
+const SEND_LEGACY = true;
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyAjlUhE_zrHJxJl6FxAeSHhFpCWq4kBT30dk2mezhRexGHefrX2qLrfZItOhezzdPqNQ/exec';
 
-let _gasParams = null; // 再送信用パラメータ
-let _gasMeta   = null; // 再送信用メタ情報
+let _sub = null;   // 直前の送信内容（結果表示用）
 
 function doSubmit(secId) {
-  const sec = SECTIONS.find(s => s.id === secId);
-  let correct = 0;
-  sec.questions.forEach(q => { if (sm.answers[q.id] === 0) correct++; });
+  const sec     = SECTIONS.find(s => s.id === secId);
+  const qids    = sec.questions.map(q => q.id);
+  const correct = qids.filter(id => sm.firstAttemptCorrect[id]).length;
+  const elapsed = sm.startedAt ? Math.round((Date.now() - sm.startedAt) / 1000) : 0;
 
-  _gasMeta = {
-    num: sm.num, name: sm.name,
-    correct, total: sec.questions.length
-  };
-  _gasParams = new URLSearchParams({
-    num      : sm.num,
-    name     : sm.name,
-    section  : sec.label,
-    correct  : String(correct),
-    total    : String(sec.questions.length),
-    timestamp: new Date().toLocaleString('ja-JP')
-  });
+  _sub = { num: sm.num, name: sm.name, correct, total: qids.length };
 
-  // 各問の正誤を個別パラメータとして追加（○/×）
-  sec.questions.forEach(q => {
-    _gasParams.append('q' + q.id, sm.answers[q.id] === 0 ? '○' : '×');
-  });
+  if (!HUB_URL && !(SEND_LEGACY && GAS_URL)) {
+    document.getElementById('sresult').innerHTML = `
+      <div class="sub-result warn">
+        ⚠️ 送信先が未設定です。<br>
+        <strong>${sm.num}　${sm.name}</strong> さんの得点：<strong>${correct} / ${_sub.total}</strong>（1回目の解答時点）
+      </div>`;
+    return;
+  }
 
   const btn = document.getElementById('sbtn');
-  btn.disabled    = true;
-  btn.textContent = '📤 送信中…';
+  if (btn) { btn.disabled = true; btn.textContent = '📤 送信中…'; }
 
-  trySend(btn, 1);
+  sendRecord(sec, qids, correct, elapsed).then(ok => showSubmitResult(ok, btn));
 }
 
-async function trySend(btn, attempt) {
-  const MAX_RETRY = 3;
-  try {
-    if (btn) {
-      btn.textContent = attempt === 1
-        ? '📤 送信中…'
-        : `🔄 再送信中… (${attempt}/${MAX_RETRY})`;
+/* ── ハブ（＋移行期は旧GAS）へ送信 ── */
+async function sendRecord(sec, qids, correct, elapsed) {
+  const marks = qids.map(id => (sm.firstAttemptCorrect[id] ? '1' : '0')).join('');
+  let ok = null;
+
+  if (HUB_URL) {
+    const secId = SEC_IDS[sec.id - 1];
+    if (!secId) {
+      console.error('SEC_IDS に ' + sec.label + ' の定義がありません');
+    } else {
+      const p = new URLSearchParams();
+      p.set('v',       '1');
+      p.set('app',     APP_ID);
+      p.set('unit',    UNIT_ID);
+      p.set('sec',     secId);          // ★恒久ID。単元マスタとの結合キー
+      p.set('section', sec.label);      // 保険（マスタ側の名前が優先される）
+      p.set('cls',     sm.num);         // 組番号 → 名簿で生徒IDに解決される
+      p.set('name',    sm.name);
+      p.set('mode',    '送信');
+      p.set('qids',    qids.join(','));
+      p.set('marks',   marks);          // 例 "1011…"（○×より遥かに短い）
+      p.set('elapsed', String(elapsed));
+      p.set('comment', '');
+      ok = await beacon(HUB_URL + '?' + p.toString());
     }
+  }
 
-    // GETリクエスト（no-cors：CORSエラーを回避）
-    await fetch(`${GAS_URL}?${_gasParams}`, { method: 'GET', mode: 'no-cors' });
+  if (SEND_LEGACY && GAS_URL) {
+    const q = new URLSearchParams({
+      num      : sm.num,
+      name     : sm.name,
+      section  : sec.label,
+      correct  : String(correct),
+      total    : String(qids.length),
+      timestamp: new Date().toLocaleString('ja-JP')
+    });
+    qids.forEach(id => q.append('q' + id, sm.firstAttemptCorrect[id] ? '○' : '×'));
+    const ok2 = await beacon(GAS_URL + '?' + q.toString());
+    if (ok === null) ok = ok2;
+  }
 
-    // 例外なく完了 → GASに到達したと判断
-    const { num, name, correct, total } = _gasMeta;
-    document.getElementById('sresult').innerHTML = `
+  return ok === true;
+}
+
+/* ── 画像ビーコン方式（CSP・CORSの影響を受けにくい）／最大3回試行 ── */
+function beacon(url) {
+  const MAX_RETRY = 3;
+  return (async () => {
+    for (let i = 0; i < MAX_RETRY; i++) {
+      const btn = document.getElementById('sbtn');
+      if (btn && i > 0) btn.textContent = `🔄 再送信中… (${i + 1}/${MAX_RETRY})`;
+      const reached = await new Promise(resolve => {
+        const img   = new Image();
+        const timer = setTimeout(() => resolve(false), 6000);
+        img.onload  = () => { clearTimeout(timer); resolve(true); };
+        img.onerror = () => { clearTimeout(timer); resolve(true); };  // 到達はしている
+        img.src = url;
+      });
+      if (reached) return true;
+      await new Promise(r => setTimeout(r, 1500));
+    }
+    return false;
+  })();
+}
+
+/* ── 結果表示 ── */
+function showSubmitResult(ok, btn) {
+  const { num, name, correct, total } = _sub;
+  const el = document.getElementById('sresult');
+  if (!el) return;
+
+  if (ok) {
+    el.innerHTML = `
       <div class="sub-result ok">
         ✅ 送信完了しました。お疲れ様でした！<br>
         <strong>${num}　${name}</strong> さんの得点：<strong>${correct} / ${total}</strong>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;">
-        <button class="next-btn" onclick="setMode('study')">
-          📖 自習モードで学習する
-        </button>
-        <button class="next-btn"
-                style="background:#059669;"
-                onclick="sm.started=false; setMode('submit')">
-          📤 送信モードでもう一度
-        </button>
+        <button class="next-btn" onclick="setMode('study')">📖 自習モードで学習する</button>
+        <button class="next-btn" style="background:#059669;"
+                onclick="sm.started=false; setMode('submit')">📤 送信モードでもう一度</button>
       </div>`;
-
-  } catch (e) {
-    if (attempt < MAX_RETRY) {
-      await new Promise(r => setTimeout(r, 2000)); // 2秒待ってリトライ
-      await trySend(btn, attempt + 1);
-    } else {
-      // 全リトライ失敗
-      const { num, name, correct, total } = _gasMeta;
-      document.getElementById('sresult').innerHTML = `
-        <div class="sub-result warn">
-          ❌ 送信に失敗しました。ネットワークを確認してもう一度お試しください。<br>
-          <strong>${num}　${name}</strong> さんの得点：<strong>${correct} / ${total}</strong>
-        </div>`;
-      if (btn) { btn.disabled = false; btn.textContent = '📤 もう一度送信する'; }
-    }
+  } else {
+    el.innerHTML = `
+      <div class="sub-result warn">
+        ❌ 送信に失敗しました。ネットワークを確認してもう一度お試しください。<br>
+        <strong>${num}　${name}</strong> さんの得点：<strong>${correct} / ${total}</strong>
+      </div>`;
+    if (btn) { btn.disabled = false; btn.textContent = '📤 もう一度送信する'; }
   }
 }
 
