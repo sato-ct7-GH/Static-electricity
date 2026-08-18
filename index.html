@@ -1289,14 +1289,10 @@ function renderSubmit(sec) {
 function renderSubmitIntro(sec) {
   document.getElementById('content').innerHTML = `
     <div class="name-card">
- <label class="name-label" for="snum">組番号を入力してください<br>
-        <span style="font-weight:400;font-size:.82em;color:#64748b;">
-          ※学年＋クラス＋出席番号の4桁（例：2年1組3番 → 2103）
-        </span>
-      </label>
+      <label class="name-label" for="snum">組番号を入力してください<br>
+        <span style="font-weight:400;font-size:.82em;color:#64748b;">※学年＋クラス＋出席番号の4桁（例：2年1組3番 → 2103）</span></label>
       <input type="text" inputmode="numeric" pattern="[0-9]*" class="name-input" id="snum"
              placeholder="例：2101～3940"
-             min="801" max="940"
              value="${sm.secId === sec.id ? sm.num : ''}">
     </div>
     <div class="name-card">
@@ -1577,7 +1573,7 @@ document.addEventListener('DOMContentLoaded', () => {
   render();
 });
 </script>
-  <!-- ▼▼ ポータルへ戻るボタン（</body> の直前に貼る） ▼▼ -->
+<!-- ▼▼ ポータルへ戻るボタン（</body> の直前に貼る） ▼▼ -->
 <style>
   .portal-home{
     position:fixed; right:14px; z-index:900;
@@ -1607,5 +1603,6 @@ document.addEventListener('DOMContentLoaded', () => {
   ポータル
 </a>
 <!-- ▲▲ ここまで ▲▲ -->
+
 </body>
 </html>
